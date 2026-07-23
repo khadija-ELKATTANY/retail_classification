@@ -1,5 +1,5 @@
 # ============================================================
-# 🚀 RETAIL CLASSIFICATION – STREAMLIT CLOUD DEPLOY
+# 🚀 RETAIL CLASSIFICATION – STREAMLIT CLOUD DEPLOY (FIXED)
 # ============================================================
 
 import streamlit as st
@@ -63,75 +63,92 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ---- CLASS NAMES ----
+CLASS_NAMES = [
+    'All Beauty', 'All Electronics', 'Appliances', 'Arts, Crafts & Sewing',
+    'Automotive', 'Beauty', 'Books', 'Cell Phones & Accessories',
+    'Clothing', 'Electronics', 'Grocery', 'Health & Personal Care',
+    'Home', 'Home Improvement', 'Kitchen & Dining', 'Office Products',
+    'Pet Supplies', 'Sports', 'Tools & Home Improvement', 'Toys',
+    'Video Games'
+]
+
+# ---- MODEL CLASS ----
+class HybridModel(nn.Module):
+    def __init__(self, num_classes=21):
+        super().__init__()
+        self.image_encoder = models.efficientnet_b3(weights=None)
+        in_features = self.image_encoder.classifier[1].in_features
+        self.image_encoder.classifier = nn.Identity()
+        self.image_fc = nn.Linear(in_features, 256)
+        self.text_encoder = DistilBertModel.from_pretrained('distilbert-base-uncased')
+        self.text_fc = nn.Linear(768, 256)
+        self.fc1 = nn.Linear(256 + 256, 256)
+        self.fc2 = nn.Linear(256, num_classes)
+        self.dropout = nn.Dropout(0.5)
+        for param in self.text_encoder.parameters():
+            param.requires_grad = False
+    
+    def forward(self, image, input_ids, attention_mask):
+        image_feat = self.image_encoder(image)
+        image_feat = self.image_fc(image_feat)
+        text_output = self.text_encoder(input_ids=input_ids, attention_mask=attention_mask)
+        text_feat = text_output.last_hidden_state[:, 0, :]
+        text_feat = self.text_fc(text_feat)
+        combined = torch.cat([image_feat, text_feat], dim=1)
+        combined = self.dropout(torch.relu(self.fc1(combined)))
+        out = self.fc2(combined)
+        return out
+
 # ---- LOAD MODEL ----
 @st.cache_resource
 def load_model():
-    class HybridModel(nn.Module):
-        def __init__(self, num_classes=21):
-            super().__init__()
-            self.image_encoder = models.efficientnet_b3(weights=None)
-            in_features = self.image_encoder.classifier[1].in_features
-            self.image_encoder.classifier = nn.Identity()
-            self.image_fc = nn.Linear(in_features, 256)
-            self.text_encoder = DistilBertModel.from_pretrained('distilbert-base-uncased')
-            self.text_fc = nn.Linear(768, 256)
-            self.fc1 = nn.Linear(256 + 256, 256)
-            self.fc2 = nn.Linear(256, num_classes)
-            self.dropout = nn.Dropout(0.5)
-            for param in self.text_encoder.parameters():
-                param.requires_grad = False
-        
-        def forward(self, image, input_ids, attention_mask):
-            image_feat = self.image_encoder(image)
-            image_feat = self.image_fc(image_feat)
-            text_output = self.text_encoder(input_ids=input_ids, attention_mask=attention_mask)
-            text_feat = text_output.last_hidden_state[:, 0, :]
-            text_feat = self.text_fc(text_feat)
-            combined = torch.cat([image_feat, text_feat], dim=1)
-            combined = self.dropout(torch.relu(self.fc1(combined)))
-            out = self.fc2(combined)
-            return out
-    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    class_names = [
-        'All Beauty', 'All Electronics', 'Appliances', 'Arts, Crafts & Sewing',
-        'Automotive', 'Beauty', 'Books', 'Cell Phones & Accessories',
-        'Clothing', 'Electronics', 'Grocery', 'Health & Personal Care',
-        'Home', 'Home Improvement', 'Kitchen & Dining', 'Office Products',
-        'Pet Supplies', 'Sports', 'Tools & Home Improvement', 'Toys',
-        'Video Games'
+    model = HybridModel(num_classes=21)
+    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+    
+    # Try multiple paths for the model file
+    model_paths = [
+        'best_hybrid.pth',
+        'models/best_hybrid.pth',
+        '../best_hybrid.pth',
+        '/mount/src/retail_classification/best_hybrid.pth',
+        '/mount/src/retail_classification/models/best_hybrid.pth'
     ]
     
-    model = HybridModel(num_classes=21)
+    model_loaded = False
+    for path in model_paths:
+        if os.path.exists(path):
+            try:
+                st.info(f"Loading model from {path}...")
+                model.load_state_dict(torch.load(path, map_location=device, weights_only=False))
+                model_loaded = True
+                st.success(f"✅ Model loaded from {path}")
+                break
+            except Exception as e:
+                st.warning(f"Failed to load from {path}: {e}")
     
-    # Try to load model from the repo root
-    model_path = 'best_hybrid.pth'
-    if os.path.exists(model_path):
-        try:
-            model.load_state_dict(torch.load(model_path, map_location=device, weights_only=False))
-            st.success("✅ Model loaded successfully!")
-        except Exception as e:
-            st.warning(f"⚠️ Failed to load model: {e}")
-            model = None
-    else:
-        st.warning("⚠️ Model file not found. Running in demo mode.")
+    if not model_loaded:
+        st.warning("⚠️ Model file not found. Running in demo mode with simulated predictions.")
         model = None
     
     model.eval()
     model.to(device)
-    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
     
-    return model, tokenizer, class_names, device
-
-model, tokenizer, class_names, device = load_model()
+    return model, tokenizer, CLASS_NAMES, device
 
 # ---- PREDICTION FUNCTION ----
 def predict(image, title, description):
     if model is None:
         import random
-        idx = random.randint(0, len(class_names)-1)
-        return class_names[idx], random.uniform(0.7, 0.95), False, []
+        idx = random.randint(0, len(CLASS_NAMES)-1)
+        # Simulate top 5
+        top5 = []
+        for i in range(5):
+            top5.append({'category': CLASS_NAMES[(idx + i) % len(CLASS_NAMES)], 'confidence': max(0.1, random.uniform(0.5, 0.95) - i*0.05)})
+        top5.sort(key=lambda x: x['confidence'], reverse=True)
+        return CLASS_NAMES[idx], random.uniform(0.7, 0.95), False, top5
     
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -152,13 +169,15 @@ def predict(image, title, description):
     
     top_idx = np.argmax(probs)
     confidence = float(probs[top_idx])
-    category = class_names[top_idx]
+    category = CLASS_NAMES[top_idx]
     is_anomaly = confidence < 0.45
     
     top5_idx = np.argsort(probs)[-5:][::-1]
-    top5 = [{'category': class_names[i], 'confidence': float(probs[i])} for i in top5_idx]
+    top5 = [{'category': CLASS_NAMES[i], 'confidence': float(probs[i])} for i in top5_idx]
     
     return category, confidence, is_anomaly, top5
+
+model, tokenizer, class_names, device = load_model()
 
 # ---- HEADER ----
 st.markdown('<div class="main-header"><h1>🛍️ Retail Classification System</h1><p>Real-Time Product Classification & Inventory Analytics</p></div>', unsafe_allow_html=True)
