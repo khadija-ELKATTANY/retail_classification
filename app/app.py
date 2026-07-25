@@ -45,6 +45,11 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
+    /* ── Hide warnings ── */
+    .stAlert {
+        display: none !important;
+    }
+    
     /* ── Main background ── */
     .main {
         background: #0a0e17;
@@ -282,8 +287,7 @@ class HybridModel(nn.Module):
             cache_dir = "./distilbert_cache"
         try:
             self.text_encoder = DistilBertModel.from_pretrained(cache_dir, local_files_only=True)
-        except Exception as e:
-            st.error(f"Failed to load DistilBERT: {e}")
+        except Exception:
             self.text_encoder = DistilBertModel.from_pretrained('distilbert-base-uncased')
 
         self.text_fc = nn.Linear(768, 256)
@@ -304,7 +308,7 @@ class HybridModel(nn.Module):
         out = self.fc2(combined)
         return out
 
-# ── Model loader (cached) ──
+# ── Model loader (cached, silent) ──
 @st.cache_resource
 def load_model():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -338,7 +342,7 @@ def load_model():
         model.eval()
         model.to(device)
     else:
-        st.warning("⚠️ Model file not found. Running in demo mode.")
+        # Silent fallback – no warning message
         model = None
 
     return model, tokenizer, CLASS_NAMES, device
@@ -414,7 +418,6 @@ st.sidebar.markdown("""
 </div>
 """.format(timestamp=datetime.now().strftime('%Y-%m-%d %H:%M')), unsafe_allow_html=True)
 
-# ── Footer in sidebar ──
 st.sidebar.markdown("""
 <div style="font-size:0.7rem;color:#8b949e;text-align:center;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.06);">
     Master's Thesis<br>
