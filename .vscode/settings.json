@@ -4,5 +4,6 @@
         ".venv",
         "*/.venv",
         ""
-    ]
+    ],
+    "python.defaultInterpreterPath": "C:/Users/Khadija/anaconda3/envs/retail/python.exe"
 }

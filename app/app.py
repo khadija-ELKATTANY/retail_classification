@@ -1,17 +1,14 @@
 # ============================================================
-# 🚀 RETAIL CLASSIFICATION SYSTEM – FULL DASHBOARD
+# 🚀 RETAIL CLASSIFICATION SYSTEM – FINAL VERSION
 # ============================================================
 
-# ── Force Hugging Face mirror (for China) ──
-from transformers import DistilBertTokenizer, DistilBertModel
 import os
+
+# ── Force offline mode (will use local cache) ──
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+# Fallback mirror (unlikely needed with local cache)
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
-
-model = DistilBertModel.from_pretrained("distilbert-base-uncased")
-tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
-
-model.save_pretrained("./distilbert_model")
-tokenizer.save_pretrained("./distilbert_model")
 
 import streamlit as st
 import torch
@@ -107,7 +104,21 @@ class HybridModel(nn.Module):
         in_features = self.image_encoder.classifier[1].in_features
         self.image_encoder.classifier = nn.Identity()
         self.image_fc = nn.Linear(in_features, 256)
-        self.text_encoder = DistilBertModel.from_pretrained('distilbert-base-uncased')
+
+        # ── Load DistilBERT from local cache ──
+        # The folder 'distilbert_cache' is expected to be in the project root.
+        # If it's inside 'app/', adjust the path to '../distilbert_cache' or './distilbert_cache'.
+        cache_dir = "./distilbert_cache"
+        if not os.path.exists(cache_dir):
+            # Fallback to a secondary location (e.g., inside app folder)
+            cache_dir = "app/distilbert_cache"
+        try:
+            self.text_encoder = DistilBertModel.from_pretrained(cache_dir, local_files_only=True)
+        except Exception as e:
+            st.error(f"Failed to load DistilBERT from local cache: {e}. Please ensure the cache folder exists.")
+            # Fallback to online (if allowed) – but we have offline env vars, so this will raise.
+            self.text_encoder = DistilBertModel.from_pretrained('distilbert-base-uncased')
+
         self.text_fc = nn.Linear(768, 256)
         self.fc1 = nn.Linear(256 + 256, 256)
         self.fc2 = nn.Linear(256, num_classes)
@@ -131,9 +142,18 @@ class HybridModel(nn.Module):
 def load_model():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = HybridModel(num_classes=21)
-    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
 
-    # Try to find the model file
+    # Load tokenizer from local cache
+    cache_dir = "./distilbert_cache"
+    if not os.path.exists(cache_dir):
+        cache_dir = "app/distilbert_cache"
+    try:
+        tokenizer = DistilBertTokenizer.from_pretrained(cache_dir, local_files_only=True)
+    except Exception as e:
+        st.error(f"Tokenizer cache not found: {e}")
+        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+
+    # Load the trained hybrid model weights
     model_paths = [
         'best_hybrid.pth',
         'models/best_hybrid.pth',
@@ -153,9 +173,11 @@ def load_model():
 
     if not loaded:
         st.warning("⚠️ Model file not found. Running in demo mode.")
+        model = None
 
-    model.eval()
-    model.to(device)
+    if model is not None:
+        model.eval()
+        model.to(device)
     return model, tokenizer, CLASS_NAMES, device
 
 model, tokenizer, class_names, device = load_model()
@@ -351,7 +373,7 @@ elif page == "🔮 Predict Product":
 elif page == "📊 Analytics":
     st.markdown('<div class="main-header"><h1>📊 Inventory Analytics</h1><p>Explore product distribution and metrics</p></div>', unsafe_allow_html=True)
 
-    # Generate sample data (replace with your real data later)
+    # Generate sample data
     np.random.seed(42)
     categories = ['Electronics', 'Clothing', 'Books', 'Beauty', 'Automotive', 'Sports', 'Toys', 'Home', 'Appliances']
     df = pd.DataFrame({
