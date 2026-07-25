@@ -3,26 +3,16 @@
 # ============================================================
 
 # ── Force Hugging Face mirror (for China) ──
+from transformers import DistilBertTokenizer, DistilBertModel
 import os
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
-# Try different mirrors in order
-mirrors = [
-    "https://mirror.sjtu.edu.cn/huggingface",
-    "https://hf-mirror.com",
-]
+model = DistilBertModel.from_pretrained("distilbert-base-uncased")
+tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
 
-for mirror in mirrors:
-    os.environ["HF_ENDPOINT"] = mirror
-    try:
-        # Attempt to load the model
-        from transformers import DistilBertTokenizer, DistilBertModel
-        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-        model = DistilBertModel.from_pretrained('distilbert-base-uncased')
-        print(f"✅ Success with mirror: {mirror}")
-        break
-    except Exception as e:
-        print(f"❌ Failed with mirror {mirror}: {e}")
-        continue
+model.save_pretrained("./distilbert_model")
+tokenizer.save_pretrained("./distilbert_model")
+
 import streamlit as st
 import torch
 import torch.nn as nn
