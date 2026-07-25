@@ -30,13 +30,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ── Hide the top menu (Streamlit default navigation) ──
+# ── Hide ONLY the top menu (not everything) ──
 st.markdown("""
 <style>
-    .stApp > header {display: none !important;}
-    .stApp > div:first-child {display: none !important;}
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -342,7 +341,7 @@ def load_model():
         model.eval()
         model.to(device)
     else:
-        model = None  # Silent fallback
+        model = None
 
     return model, tokenizer, CLASS_NAMES, device
 
