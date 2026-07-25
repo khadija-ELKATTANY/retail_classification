@@ -1,7 +1,8 @@
 # ============================================================
 # 🚀 RETAIL CLASSIFICATION – STREAMLIT CLOUD DEPLOY (FIXED)
 # ============================================================
-
+import os
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 import streamlit as st
 import torch
 import torch.nn as nn
