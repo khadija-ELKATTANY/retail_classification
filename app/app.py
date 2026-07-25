@@ -30,6 +30,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ── Hide the top menu (Streamlit default navigation) ──
+st.markdown("""
+<style>
+    .stApp > header {display: none !important;}
+    .stApp > div:first-child {display: none !important;}
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+</style>
+""", unsafe_allow_html=True)
+
 # ── Professional Custom CSS ──
 st.markdown("""
 <style>
@@ -38,16 +48,6 @@ st.markdown("""
     
     * {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    
-    /* ── Hide default Streamlit elements ── */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* ── Hide warnings ── */
-    .stAlert {
-        display: none !important;
     }
     
     /* ── Main background ── */
@@ -211,6 +211,17 @@ st.markdown("""
         color: #8b949e;
         font-size: 0.75rem;
         margin: 0;
+    }
+    .sidebar-status {
+        font-size: 0.8rem;
+        color: #8b949e;
+        padding: 0.5rem 0;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        margin-top: 1rem;
+    }
+    .sidebar-status .highlight {
+        color: #58a6ff;
+        font-weight: 600;
     }
     
     /* ── Buttons ── */
@@ -397,6 +408,14 @@ page = st.sidebar.radio(
     ],
     index=0
 )
+
+st.sidebar.markdown("""
+<div class="sidebar-status">
+    <div>📅 {timestamp}</div>
+    <div>📊 Accuracy: <span class="highlight">75.33%</span></div>
+    <div>⚡ Model: <span class="highlight">Active</span></div>
+</div>
+""".format(timestamp=datetime.now().strftime('%Y-%m-%d %H:%M')), unsafe_allow_html=True)
 
 st.sidebar.markdown("""
 <div style="font-size:0.7rem;color:#8b949e;text-align:center;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.06);">
