@@ -31,11 +31,11 @@ st.set_page_config(
 )
 
 # ── Hide ONLY the top menu (not everything) ──
+# ── We keep header visible so sidebar toggle works ──
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
-    header {visibility: hidden !important;}
 </style>
 """, unsafe_allow_html=True)
 
